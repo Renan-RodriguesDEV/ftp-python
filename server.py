@@ -21,6 +21,7 @@ authorizer = DummyAuthorizer()
 authorizer.add_user(**configs)
 # manipulador do FTP
 ftp_handler = FTPHandler
+ftp_handler.passive_ports = range(60000, 65535)
 ftp_handler.authorizer = authorizer
 
 # criando o servidor FTP
