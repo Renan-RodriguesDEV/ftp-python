@@ -1,4 +1,5 @@
 import os
+import time
 from ftplib import FTP
 
 from dotenv import load_dotenv
@@ -45,33 +46,54 @@ ftp.cwd(REMOTE_DIR)
 print(f"Diretório atual: {ftp.pwd()}")
 print(f"Navegando até a pasta {REMOTE_DIR}")
 
-# Configurando para modo passivo (importante para contornar firewalls/NAT)
-ftp.set_pasv(False)
-print("Modo passivo False ativado")
 
-# listando os arquivos na pasta remota
-try:
-    files = ftp.nlst()
-    print("Listagem de arquivos realizada com sucesso.")
-except Exception as e:
-    print(f"Erro ao listar arquivos: {e}")
-    files = []
+def main():
+    mode = False
+    # listando os arquivos na pasta remota
+    while True:
+        mode = not mode
+        # Configurando para modo passivo (importante para contornar firewalls/NAT)
+        ftp.set_pasv(mode)
+        print(f"Modo passivo {mode} ativado")
+        try:
+            files = ftp.nlst()
+            print("Listagem de arquivos realizada com sucesso.")
+            break
+        except Exception as e:
+            print(f"Erro ao listar arquivos: {e}")
+            files = []
 
-# ftp.set_pasv(True)
-print(f"Arquivos na pasta {REMOTE_DIR}: {len(files)}")
-for file in files:
-    try:
-        local_filepath = os.path.join(LOCAL_DIR, file)
-        with open(local_filepath, "wb") as f:
-            # baixando o arquivo
+    files_success = 0
+    print(f"Arquivos na pasta {REMOTE_DIR}: {len(files)}")
+    for file in files:
+        while True:
+            mode = not mode
+            # Configurando para modo passivo (importante para contornar firewalls/NAT)
+            ftp.set_pasv(mode)
+            print(f"Modo passivo {mode} ativado")
+            try:
+                local_filepath = os.path.join(LOCAL_DIR, file)
+                with open(local_filepath, "wb") as f:
+                    # baixando o arquivo
+                    ftp.retrbinary(f"RETR {file}", f.write, 8192)
+                print(f"Arquivo {file} baixado com sucesso!")
+                files_success += 1
+                # deletando o arquivo do servidor FTP após o download
+                ftp.delete(file)
+                print(f"Arquivo {file} deletado do servidor FTP.")
+                break
+            except Exception as e:
+                print(f"Erro ao processar o arquivo {file}: {e}")
 
-            ftp.retrbinary(f"RETR {file}", f.write)
-        print(f"Arquivo {file} baixado com sucesso!")
-        # deletando o arquivo do servidor FTP após o download
-        ftp.delete(file)
-        print(f"Arquivo {file} deletado do servidor FTP.")
-    except Exception as e:
-        print(f"Erro ao processar o arquivo {file}: {e}")
+    print(f"Total de arquivos baixados com sucesso: {files_success}")
+    # fechando a conexão
+    ftp.quit()
 
-# fechando a conexão
-ftp.quit()
+
+if __name__ == "__main__":
+    while True:
+        try:
+            main()
+        except Exception as e:
+            print(f"[DEBUG] >> Erro na execução do main: {e}")
+        time.sleep(60)
